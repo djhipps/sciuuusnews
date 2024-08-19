@@ -61,7 +61,6 @@ class SciuuusNewsForm {
         register_setting('sciuuus_news_options_group', 'sciuuus_news_turnstile_secret_key');
     }
 
-
     public function sciuuus_news_settings_page() {
         //add_options_page('Newsletter Settings', 'Sciuuus Turnstile', 'manage_options', 'sciuuus-news-settings', array($this, 'sciuuus_news_settings_page_html'));
         add_submenu_page(
@@ -118,6 +117,61 @@ class SciuuusNewsForm {
         <?php
     }
 
+    public function create_custom_post_type_sciuuus_news() {
+        // How to find out which arguments are necessary? Is there an API docs sheet?
+        // https://developer.wordpress.org/reference/functions/register_post_type/
+        $args =  array(
+                'public' => true,
+                'has_archive' => true,
+                'supports' => array('title', 'editor', 'custom-fields'),
+                'exclude_from_search' => true,
+                'publicly_queryable' => false,
+                'capabilities' => array(
+                        'edit_post' => 'edit_submissions', // Example capability for editing posts
+                        'read_post' => 'read_submissions', // Example capability for reading posts
+                        'delete_post' => 'delete_submissions', // Capability for deleting posts
+                        'create_posts' => 'do_not_allow',
+                ),
+                'labels' => array(
+                        'name' => 'Sciuus Newsletter',
+                        'singular_name' => 'Sciuuus Newsletter',
+                ),
+                'menu_icon' => 'dashicons-media-text',
+                'map_meta_cap' => true,
+        );
+        register_post_type('sciuuus_news', $args);
+    }
+
+    function fill_sciuuus_news_columns($column, $post_id) {
+        switch ($column) {
+            case 'firstname':
+                echo esc_html(get_post_meta($post_id, 'firstname', true));
+                break;
+            case 'lastname':
+                echo esc_html(get_the_title($post_id));
+                break;
+            case 'email':
+                echo esc_html(get_post_meta($post_id, 'email', true));
+                break;
+            case 'post_status':
+                $post_status = get_post_status($post_id);
+                echo ucfirst($post_status);
+                break;
+        }
+    }
+
+    function custom_sciuuus_news_columns($columns) {
+        $new_columns = array(
+                'cb' => $columns['cb'],
+                'firstname' => __('First Name', 'news-plugin'),
+                'lastname' => __('Last Name', 'news-plugin'),
+                'email' => __('Email', 'news-plugin'),
+                'post_status' => __('Status', 'news-plugin')
+        );
+        return $new_columns;
+    }
+
+
     public function load_assets() {
         global $post;
 
@@ -159,10 +213,6 @@ class SciuuusNewsForm {
             $turnstile_site_key = get_option('sciuuus_news_turnstile_site_key');
             ?>
             <div class="sciuuus-news-form">
-
-                <div id="form_success" style="background: green; color:white"></div>
-                <div id="form_error" style="background: red; color:white"></div>
-
                 <form method="post" action="<?php echo esc_url($_SERVER['REQUEST_URI']); ?>" id="sciuuus-news-form__form">
                     <div class="row g-3">
                         <div class="form-group col-md-6">
@@ -209,7 +259,7 @@ class SciuuusNewsForm {
         if (isset($_POST['sciuuus_news_form_submit'])) {
             // Check nonce
             if (!isset($_POST['sciuuus_news_form_nonce']) || !wp_verify_nonce($_POST['sciuuus_news_form_nonce'], 'sciuuus_news_form_nonce')) {
-                die('Security check failed');
+                die('Il controllo di sicurezza non è riuscito');
             }
 
             // Sanitize and validate form data
@@ -245,7 +295,7 @@ class SciuuusNewsForm {
                 exit;
             } else {
                 // Handle error
-                echo 'There was an error submitting your form. Please try again.';
+                echo 'Si è verificato un errore durante l\'invio del modulo. Per favore riprova.';
             }
         }
     }
@@ -384,59 +434,7 @@ class SciuuusNewsForm {
         exit;
     }
 
-    public function create_custom_post_type_sciuuus_news() {
-        // How to find out which arguments are necessary? Is there an API docs sheet?
-        // https://developer.wordpress.org/reference/functions/register_post_type/
-        $args =  array(
-                'public' => true,
-                'has_archive' => true,
-                'supports' => array('title', 'editor', 'custom-fields'),
-                'exclude_from_search' => true,
-                'publicly_queryable' => false,
-                'capabilities' => array(
-                        'edit_post' => 'edit_submissions', // Example capability for editing posts
-                        'read_post' => 'read_submissions', // Example capability for reading posts
-                        'delete_post' => 'delete_submissions', // Capability for deleting posts
-                        'create_posts' => 'do_not_allow',
-                ),
-                'labels' => array(
-                        'name' => 'Sciuus Newsletter',
-                        'singular_name' => 'Sciuuus Newsletter',
-                ),
-                'menu_icon' => 'dashicons-media-text',
-                'map_meta_cap' => true,
-        );
-        register_post_type('sciuuus_news', $args);
-    }
 
-    function fill_sciuuus_news_columns($column, $post_id) {
-        switch ($column) {
-            case 'firstname':
-                echo esc_html(get_post_meta($post_id, 'firstname', true));
-                break;
-            case 'lastname':
-                echo esc_html(get_the_title($post_id));
-                break;
-            case 'email':
-                echo esc_html(get_post_meta($post_id, 'email', true));
-                break;
-            case 'post_status':
-                $post_status = get_post_status($post_id);
-                echo ucfirst($post_status);
-                break;
-        }
-    }
-
-    function custom_sciuuus_news_columns($columns) {
-        $new_columns = array(
-                'cb' => $columns['cb'],
-                'firstname' => __('First Name', 'news-plugin'),
-                'lastname' => __('Last Name', 'news-plugin'),
-                'email' => __('Email', 'news-plugin'),
-                'post_status' => __('Status', 'news-plugin')
-        );
-        return $new_columns;
-    }
 
     public function download_sciuuus_news_subscriptions() {
         if (!current_user_can('manage_options')) {
